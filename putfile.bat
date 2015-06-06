@@ -12,6 +12,6 @@ if not "%1" == "" if not "%2" == "" (
     echo %1 %2
     %cmdlogin% -v login %a% %b%
     %cmdlogin% -v put -c  balibell %1 %2 >> log.txt
-    echo http://7u2o9e.com1.z0.glb.clouddn.com/%1 >> log.txt
+    echo upload image success http://7u2o9e.com1.z0.glb.clouddn.com/%1 >> log.txt
 )
 
