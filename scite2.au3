@@ -126,8 +126,13 @@ Func MainFunc()
 
 
 		 WinActivate($whichgroup)
-		 Send("^+1")
-		 Sleep(500)
+
+		 ; 切换到英文输入法，保证 send 正确
+		 Local $hWnd = WinGetHandle("[ACTIVE]")
+		 Local $ret = DllCall("user32.dll", "long", "LoadKeyboardLayout", "str", "08040804", "int", 1 + 0)
+		 DllCall("user32.dll", "ptr", "SendMessage", "hwnd", $hWnd, "int", 0x50, "int", 1, "int", $ret[0])
+
+		 ;Send("^+1")
 		 Send($text,1)
 
 
