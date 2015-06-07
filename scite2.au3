@@ -2,15 +2,15 @@
 #include <Process.au3>
 #include <Date.au3>
 
-Dim $pageurl = "https://twitter.com/balibell"
+Dim $pageurl = "https://twitter.com/fangshimin"
 ;$pageurl = "http://www.duitang.com"
 Dim $sinaAuth = "http://dtxn.sinaapp.com/SinaOauth/index/"
 Dim $sinaPost = "http://dtxn.sinaapp.com/wormhole/new_weibo/"
 Dim $whichgroup = "我们(理性与人文)"
-$whichgroup = "山高高"
+;$whichgroup = "山高高"
 Dim $oldtidfile = "oldtid.txt"
 Dim $logfile = "log.txt"
-Dim $num = 2
+Dim $num = 0
 Dim $tick = 0
 Dim $firstRun = True
 
@@ -126,6 +126,8 @@ Func MainFunc()
 
 
 		 WinActivate($whichgroup)
+		 Send("^+1")
+		 Sleep(500)
 		 Send($text,1)
 
 
@@ -192,7 +194,7 @@ Func MainFunc()
 		 EndIf
 
 
-
+		 ; 确认发送qq消息
 		 Send("{Enter}")
 
 		 Sleep(1000)
