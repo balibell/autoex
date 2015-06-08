@@ -14,7 +14,36 @@ Dim $num = 0
 Dim $tick = 0
 Dim $firstRun = True
 
+Func PostWeiboWindowMode($texten, $picurl)
+   ;Return
+   ; -------------------------------------------------- 同时发表微博
+   ;_IEAction ($oSina, "visible")
+   ;_IENavigate($oSina, $sinaPostUrl)
 
+   Local $urlSinaShare = "http://service.weibo.com/share/share.php?title="& $texten &"&pic=" & $picurl
+   Local $oSinaShare = _IECreate($urlSinaShare)
+   Sleep(1000)
+   js($oSinaShare,"document.getElementById('shareIt').click();")
+
+
+
+	;_RunDos("echo "& $imgurls &" >> " & $logfile)
+
+   Local $wtit = 0
+   While $wtit < 30
+	  Sleep(1000)
+	  ; 如果分享成功，退出循环
+	  If StringInStr(_IEPropertyGet($oSinaShare,"locationurl"), "share/success.php") > -1 Then
+		 ExitLoop
+	  EndIf
+	  $wtit += 1
+   WEnd
+
+   ; 关掉弹出的对话框
+   Send("!Y")
+	_IEQuit($oSinaShare)
+   ; -------------------------------------------------- 发表微博结束
+EndFunc
 
 
 
@@ -46,7 +75,6 @@ Func MainFunc()
 	  MainFunc()
 	  Return
    EndIf
-
 
 
 
@@ -102,7 +130,7 @@ Func MainFunc()
 
 	  $tick += 1
 	  ; try to click new tweets bar
-	  js($oIE,"$('.js-new-tweets-bar ').click();$('.ProfileAvatar-container').html("& $tick &");")
+	  js($oIE,"$('.js-new-tweets-bar').click();$('.ProfileAvatar-container').html("& $tick &");")
 
 	  $tid = GetTidFrom($oIE, $num)
 	  ;MsgBox(0, $tick & "whole thing",$tid)
@@ -127,12 +155,10 @@ Func MainFunc()
 
 		 WinActivate($whichgroup)
 
-		 ; 切换到英文输入法，保证 send 正确
-		 Local $hWnd = WinGetHandle("[ACTIVE]")
-		 Local $ret = DllCall("user32.dll", "long", "LoadKeyboardLayout", "str", "08040804", "int", 1 + 0)
-		 DllCall("user32.dll", "ptr", "SendMessage", "hwnd", $hWnd, "int", 0x50, "int", 1, "int", $ret[0])
+		 ; 切换到英文输入法，保证 send 正确 qq对话框文本输入
+		 SwitchEnglish($whichgroup)
 
-		 ;Send("^+1")
+
 		 Send($text,1)
 
 
@@ -174,7 +200,12 @@ Func MainFunc()
 			   MouseClick("right",40,160,1)
 			   Sleep(500)
 			   Send("S")
-			   Sleep(500)
+			   Sleep(2000)
+
+			   ;必须默认用英文输入法，切换有时候无用
+			   ;SwitchEnglish("保存图片")
+			   ;Sleep(500)
+
 			   Send(@WorkingDir & "\" & $picSavePath)
 			   Sleep(500)
 			   Send("{Enter}")
@@ -228,6 +259,8 @@ Func MainFunc()
 			   Local $cmdPutQiniu = "delfile "& $picVisPath[$si-1]
 			   _RunDos($cmdPutQiniu)
 			Next
+
+			_RunDos("del "& @WorkingDir &"\img\*.jpg")
 		 EndIf
 
 
@@ -257,36 +290,16 @@ Func MainFunc()
    WEnd
 EndFunc
 
+Func SwitchEnglish($title)
+   Local $hWnd = WinGetHandle("[ACTIVE; TITLE:"& $title &"]")
+   ;MsgBox(0,"win active sina ", $hWnd & "url:" & $title)
+   Local $ret = DllCall("user32.dll", "long", "LoadKeyboardLayout", "str", "08040804", "int", 1 + 0)
+   DllCall("user32.dll", "ptr", "SendMessage", "hwnd", $hWnd, "int", 0x50, "int", 1, "int", $ret[0])
 
-Func PostWeiboWindowMode($texten, $picurl)
-   ; -------------------------------------------------- 同时发表微博
-   ;_IEAction ($oSina, "visible")
-   ;_IENavigate($oSina, $sinaPostUrl)
-
-   Local $urlSinaShare = "http://service.weibo.com/share/share.php?title="& $texten &"&pic=" & $picurl
-   Local $oSinaShare = _IECreate($urlSinaShare)
-   Sleep(1000)
-   js($oSinaShare,"document.getElementById('shareIt').click();")
-
-
-
-	;_RunDos("echo "& $imgurls &" >> " & $logfile)
-
-   Local $wtit = 0
-   While $wtit < 30
-	  Sleep(1000)
-	  ; 如果分享成功，退出循环
-	  If StringInStr(_IEPropertyGet($oSinaShare,"locationurl"), "share/success.php") > -1 Then
-		 ExitLoop
-	  EndIf
-	  $wtit += 1
-   WEnd
-
-   ; 关掉弹出的对话框
-   Send("!Y")
-	_IEQuit($oSinaShare)
-   ; -------------------------------------------------- 发表微博结束
+   ;Send("^+1")
 EndFunc
+
+
 
 
 Func GetTidFrom($oIE, $num)
