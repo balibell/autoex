@@ -4,14 +4,17 @@
 
 Dim $pageurl = "https://twitter.com/fangshimin"
 ;$pageurl = "http://www.duitang.com"
+Dim $pageurlweibo = "http://weibo.com/u/1224254755"
+Dim $weibosync = False
+
 Dim $sinaAuth = "http://dtxn.sinaapp.com/SinaOauth/index/"
 Dim $sinaPost = "http://dtxn.sinaapp.com/wormhole/new_weibo/"
 Dim $whichgroup = "我们(理性与人文)"
 ;$whichgroup = "山高高"
-Dim $oldtidfile = "oldtid.txt"
+
 Dim $logfile = "log.txt"
 Dim $num = 0
-Dim $tick = 0
+
 Dim $firstRun = True
 
 Func PostWeiboWindowMode($texten, $picurl)
@@ -52,7 +55,14 @@ EndFunc
 If Not WinActivate($whichgroup)  Then
    MsgBox(0, "Error", "请先打开目标聊天窗口【"& $whichgroup &"】，再执行本程序")
    Exit
+
 EndIf
+
+
+;~ Local $oIEWeibo = _IECreate($pageurlweibo)
+;~ MsgBox(0,"whole thing", GetTidFromWeibo($oIEWeibo,0))
+
+;~ Exit
 
 
 MainFunc()
@@ -65,25 +75,32 @@ Exit
 Func MainFunc()
    Local $oSina
    Local $oIE = _IECreate($pageurl)
-   ;js($oIE,FileRead("jquery-2.0.2.js"))
 
-   ; whether can get tid from html content
-   Local $tid = GetTidFrom($oIE,0)
-   If Not $tid  Then
-	  _IEQuit($oIE)
-	  Sleep(10000)
-	  MainFunc()
-	  Return
+
+   Local $oIEWeibo
+
+   If $weibosync Then
+	  $oIEWeibo = _IECreate($pageurlweibo)
    EndIf
 
 
 
-   ; get page title
-   Local $pagetitle = js($oIE,"(document.title)")
-   ;MsgBox(0, "title", $pagetitle)
+   ;js($oIE,FileRead("jquery-2.0.2.js"))
 
-   ; read old id from file
-   Local $oldTid = ReadFileValue($oldtidfile)
+;~    ; whether can get tid from html content
+;~    Local $tid = GetTidFrom($oIE,0)
+;~    If Not $tid  Then
+;~ 	  _IEQuit($oIE)
+;~ 	  Sleep(10000)
+;~ 	  MainFunc()
+;~ 	  Return
+;~    EndIf
+
+
+
+
+
+
 
 
    ;记录开始时间
@@ -91,9 +108,7 @@ Func MainFunc()
    Dim $timestartwb = $timestart
    ;MsgBox(0, "timestart", $timestart)
 
-
-
-
+   Dim $tick = 0
    While 1
 	  ; 获取微博的权限
 	  Dim $timenow = _NowCalc()
@@ -129,150 +144,23 @@ Func MainFunc()
 
 
 	  $tick += 1
+
+	  ; 10次才做一次 $oIEWeibo 的检查
+	  If Mod($tick,10) == 1 And $oIEWeibo Then
+		 ; 第四个参数表示是否 weibo
+		 MainSync($oIEWeibo, "oldtid_weibo.txt", 0, True)
+	  EndIf
+
 	  ; try to click new tweets bar
 	  js($oIE,"$('.js-new-tweets-bar').click();$('.ProfileAvatar-container').html("& $tick &");")
 
-	  $tid = GetTidFrom($oIE, $num)
-	  ;MsgBox(0, $tick & "whole thing",$tid)
-
-
-	  If $oldTid <> $tid And $tid Then
-	  ;If True Then
-		 WinActivate($pagetitle)
-		 Sleep(2000)
 
 
 
 
-		 Local $texten = js($oIE,"encodeURIComponent($('.stream-items .stream-item').eq(" & $num & ").find('.tweet-text').text().replace(/ *pic\.twitter\.com.*/,''))")
-		 Local $imgurls = js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").find('.cards-media-container').attr('expimgs','').find('[data-resolved-url-large]').each(function(i,e){var $t=$(e),$c=$t.closest('.cards-media-container'),imgs=$c.attr('expimgs') || '';$c.attr('expimgs', imgs+ (i == 0 ? '' : ',') + $t.attr('data-resolved-url-large'))}).closest('.cards-media-container').attr('expimgs') || ''")
-		 Local $imgsplits = StringSplit($imgurls,",")
+	  MainSync($oIE, "oldtid.txt", $num, False)
 
 
-		 ;Local $text = _UTFToString($texten)
-		 Local $text = js($oIE,"decodeURIComponent('"& $texten &"')")
-
-
-		 WinActivate($whichgroup)
-
-		 ; 切换到英文输入法，保证 send 正确 qq对话框文本输入
-		 SwitchEnglish($whichgroup)
-
-
-		 Send($text,1)
-
-
-		 _RunDos("echo "& StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
-		 _RunDos("echo imgurls ----: "& $imgurls &" >> " & $logfile)
-
-
-		 Local $picVisPath[$imgsplits[0]]
-		 Local $picVisPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
-
-		 ;MsgBox(0,"whole thing",$tid&$text)
-		 WinSetState(_IEPropertyGet ($oIE,"hwnd"),"",@SW_MINIMIZE)
-
-		 If $imgurls Then
-			For $si=1 To $imgsplits[0]
-			   Local $picSavePath = "img\tmp"& $si &".jpg"
-			   Local $imgurl = $imgsplits[$si]
-			   _RunDos("echo upload from twitter image : "& $imgurl &" >> " & $logfile)
-
-			   ;MsgBox(0,"image exists", $imgurls)
-
-			   $picVisPath[$si-1] = "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & ".jpg"
-
-			   ;Local $cmdDown = "python down.py " & $picSavePath & " " & $imgurls
-			   ;_RunDos($cmdDown)
-
-
-
-
-			   Local $oImg = _IECreate($imgurl)
-			   ; fullscreen mode in browser
-			   WinSetState(_IEPropertyGet ($oImg,"hwnd"),"",@SW_MAXIMIZE)
-			   _IEAction($oImg,"visible")
-			   MouseClick("right",40,160,1)
-			   Sleep(500)
-			   Send("C")
-
-			   Sleep(500)
-			   MouseClick("right",40,160,1)
-			   Sleep(500)
-			   Send("S")
-			   Sleep(2000)
-
-			   ;必须默认用英文输入法，切换有时候无用
-			   ;SwitchEnglish("保存图片")
-			   ;Sleep(500)
-
-			   Send(@WorkingDir & "\" & $picSavePath)
-			   Sleep(500)
-			   Send("{Enter}")
-			   Sleep(500)
-			   Send("!Y")
-			   Sleep(500)
-
-
-
-			   Local $cmdPutQiniu = "putfile "& $picVisPath[$si-1] &" " & $picSavePath
-			   _RunDos($cmdPutQiniu)
-
-
-
-			   WinActivate($whichgroup)
-			   Send("^{Enter}")
-			   Send("^v")
-			   Sleep(500)
-			   _IEQuit($oImg)
-			Next
-
-		 EndIf
-
-
-		 ; 确认发送qq消息
-		 Send("{Enter}")
-
-		 Sleep(1000)
-
-
-		 ;MsgBox(0,"win active sina ", $actsn & "url:" & $text)
-
-		 ; -------------------------------------------------- 同时发表微博
-		 ;Local $sinaPostUrl = $sinaPost & "?txt=" & $texten
-		 ;$sinaPostUrl &= "&img=" & $picVisPre & $picVisPath[0]
-		 ;_IEAction ($oSina, "visible")
-		 ;_IENavigate($oSina, $sinaPostUrl)
-
-
-		 If $imgurls Then
-			PostWeiboWindowMode($texten, $picVisPre & $picVisPath[0])
-		 Else
-			PostWeiboWindowMode($texten, "")
-		 EndIf
-
-
-		 Sleep(1000)
-
-		 If $imgurls Then
-			For $si=1 To $imgsplits[0]
-			   Local $cmdPutQiniu = "delfile "& $picVisPath[$si-1]
-			   _RunDos($cmdPutQiniu)
-			Next
-
-			_RunDos("del "& @WorkingDir &"\img\*.jpg")
-		 EndIf
-
-
-
-		 ; 最小化相关窗口
-		 WinSetState(_IEPropertyGet ($oSina,"hwnd"),"",@SW_MINIMIZE)
-
-		 $oldTid = $tid
-		 _RunDos("echo "& $oldTid &" > " & $oldtidfile)
-	  Else
-		 ;nothing should be done
-	  EndIf
 
 	  ; sleep  5 secs after new tweets bar is clicked
 	  Sleep(5000)
@@ -290,6 +178,176 @@ Func MainFunc()
    WEnd
 EndFunc
 
+
+Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
+   Local $tid = GetTidFrom($oIE, $num)
+
+   If $isWeibo Then
+	  $tid = GetTidFromWeibo($oIE, $num)
+   EndIf
+
+   ; read old id from file
+   Local $oldTid = ReadFileValue($oldtidfile)
+
+
+   ;MsgBox(0, "timestart", $oldtidfile & $oldTid & "////$tid:" & $tid)
+   If $oldTid <> $tid And $tid Then
+   ;If True Then
+	  ; get page title
+	  Local $pagetitle = js($oIE,"(document.title)")
+	  WinActivate($pagetitle)
+	  Sleep(2000)
+
+
+
+
+	  Local $texten = js($oIE,"encodeURIComponent($('.stream-items .stream-item').eq(" & $num & ").find('.tweet-text').text().replace(/ *pic\.twitter\.com.*/,''))")
+	  Local $imgurls = js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").find('.cards-media-container').attr('expimgs','').find('[data-resolved-url-large]').each(function(i,e){var $t=$(e),$c=$t.closest('.cards-media-container'),imgs=$c.attr('expimgs') || '';$c.attr('expimgs', imgs+ (i == 0 ? '' : ',') + $t.attr('data-resolved-url-large'))}).closest('.cards-media-container').attr('expimgs') || ''")
+
+	  If $isWeibo Then
+		 $texten = js($oIE,"function(){var node = document.querySelector('.WB_feed_type'); if(node.getAttribute('feedtype') == 'top') node = document.querySelectorAll('.WB_feed_type:nth-of-type(2)')[0];return encodeURIComponent(node.querySelector('.WB_text').innerText)}")
+		 $imgurls = js($oIE,"function(){var node = document.querySelector('.WB_feed_type'); if(node.getAttribute('feedtype') == 'top') node = document.querySelectorAll('.WB_feed_type:nth-of-type(2)')[0];var imgs = node.querySelectorAll('.media_box li img');var strimgs='';for( var i=0; i<imgs.length; i++){if(i != 0){strimgs+=','};strimgs+=imgs[i].getAttribute('src');};return strimgs;}")
+	  EndIf
+
+	  Local $imgsplits = StringSplit($imgurls,",")
+
+
+	  ;Local $text = _UTFToString($texten)
+	  Local $text = js($oIE,"decodeURIComponent('"& $texten &"')")
+
+
+	  WinActivate($whichgroup)
+
+	  ; 切换到英文输入法，保证 send 正确 qq对话框文本输入
+	  SwitchEnglish($whichgroup)
+
+
+	  Send($text,1)
+
+
+	  _RunDos("echo "& StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
+	  _RunDos("echo imgurls ----: "& $imgurls &" >> " & $logfile)
+
+
+	  Local $picVisPath[$imgsplits[0]]
+	  Local $picVisPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
+
+	  ;MsgBox(0,"whole thing",$tid&$text)
+	  WinSetState(_IEPropertyGet ($oIE,"hwnd"),"",@SW_MINIMIZE)
+
+	  If $imgurls Then
+		 For $si=1 To $imgsplits[0]
+			Local $picSavePath = "img\tmp"& $si &".jpg"
+			Local $imgurl = $imgsplits[$si]
+			_RunDos("echo upload from twitter image : "& $imgurl &" >> " & $logfile)
+
+			;MsgBox(0,"image exists", $imgurls)
+
+			$picVisPath[$si-1] = "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & ".jpg"
+
+			;Local $cmdDown = "python down.py " & $picSavePath & " " & $imgurls
+			;_RunDos($cmdDown)
+
+
+
+
+			Local $oImg = _IECreate($imgurl)
+			; fullscreen mode in browser
+			WinSetState(_IEPropertyGet ($oImg,"hwnd"),"",@SW_MAXIMIZE)
+			_IEAction($oImg,"visible")
+			MouseClick("right",40,160,1)
+			Sleep(500)
+			Send("C")
+
+
+
+
+			If Not $isWeibo Then
+			   Sleep(500)
+			   MouseClick("right",40,160,1)
+			   Sleep(500)
+			   Send("S")
+			   Sleep(1000)
+
+			   ;必须默认用英文输入法，切换有时候无用
+			   ;SwitchEnglish("保存图片")
+			   ;Sleep(500)
+
+			   Send(@WorkingDir & "\" & $picSavePath)
+			   Sleep(500)
+			   Send("{Enter}")
+			   Sleep(500)
+			   Send("!Y")
+			   Sleep(500)
+
+			   Local $cmdPutQiniu = "putfile "& $picVisPath[$si-1] &" " & $picSavePath
+			   _RunDos($cmdPutQiniu)
+			EndIf
+
+
+
+			WinActivate($whichgroup)
+			Send("^{Enter}")
+			Send("^v")
+			Sleep(500)
+			_IEQuit($oImg)
+		 Next
+
+	  EndIf
+
+
+	  ; 确认发送qq消息
+	  Send("{Enter}")
+
+	  Sleep(1000)
+
+
+	  ;MsgBox(0,"win active sina ", $actsn & "url:" & $text)
+
+	  ; -------------------------------------------------- 同时发表微博
+	  ;Local $sinaPostUrl = $sinaPost & "?txt=" & $texten
+	  ;$sinaPostUrl &= "&img=" & $picVisPre & $picVisPath[0]
+	  ;_IEAction ($oSina, "visible")
+	  ;_IENavigate($oSina, $sinaPostUrl)
+
+	  If Not $isWeibo Then
+		 If $imgurls Then
+			PostWeiboWindowMode($texten, $picVisPre & $picVisPath[0])
+		 Else
+			PostWeiboWindowMode($texten, "")
+		 EndIf
+	  EndIf
+
+
+
+	  Sleep(1000)
+
+	  If $imgurls Then
+		 If Not $isWeibo Then
+			For $si=1 To $imgsplits[0]
+			   Local $cmdPutQiniu = "delfile "& $picVisPath[$si-1]
+			   _RunDos($cmdPutQiniu)
+			Next
+		 EndIf
+
+		 _RunDos("del "& @WorkingDir &"\img\*.jpg")
+	  EndIf
+
+
+
+
+	  ;$oldTid = $tid
+	  _RunDos("echo "& $tid &" > " & $oldtidfile)
+
+	  If $num > 0 Then
+		 $num -= 1
+	  EndIf
+   Else
+	  ;nothing should be done
+   EndIf
+
+EndFunc
+
 Func SwitchEnglish($title)
    Local $hWnd = WinGetHandle("[ACTIVE; TITLE:"& $title &"]")
    ;MsgBox(0,"win active sina ", $hWnd & "url:" & $title)
@@ -300,7 +358,10 @@ Func SwitchEnglish($title)
 EndFunc
 
 
-
+Func GetTidFromWeibo($oIE, $num)
+   return js($oIE,"(function(){var node = document.querySelector('.WB_feed_type'); return document.querySelector; if(node.getAttribute('feedtype') == 'top') node = document.querySelectorAll('.WB_feed_type:nth-of-type(2)')[0];return node.getAttribute('mid') || '';})();")
+   ;return js($oIE,"(function(){var node = document.querySelector('.WB_feed_type'); if(node.getAttribute('feedtype') == 'top') node = document.querySelectorAll('.WB_feed_type:nth-of-type(2)')[0];return node.getAttribute('mid') || '';})();")
+EndFunc
 
 Func GetTidFrom($oIE, $num)
    return js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").attr('data-item-id') || ''")
@@ -315,7 +376,7 @@ Func ReadFileValue($fileAddr)
    ; 检查文件是否正常打开
    If $file = -1 Then
 	   ; create this File with empty content
-	   _RunDos("echo a 2> " & $oldtidfile)
+	   _RunDos("echo a 2> " & $fileAddr)
    Else
 	  ; 每次读取1行字符直到文件结尾（EOF，End-Of-File） 为止
 	  While 1
