@@ -154,11 +154,10 @@ Func MainFunc()
 	  ; try to click new tweets bar
 	  js($oIE,"$('.js-new-tweets-bar').click();$('.ProfileAvatar-container').html("& $tick &");")
 
-
-
-
-
-	  MainSync($oIE, "oldtid.txt", $num, False)
+	  ; if succeed num minus 1
+	  If MainSync($oIE, "oldtid.txt", $num, False) And $num > 0 Then
+		 $num -= 1
+	  EndIf
 
 
 
@@ -209,6 +208,11 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 		 $imgurls = js($oIE,"function(){var node = document.querySelector('.WB_feed_type'); if(node.getAttribute('feedtype') == 'top') node = document.querySelectorAll('.WB_feed_type:nth-of-type(2)')[0];var imgs = node.querySelectorAll('.media_box li img');var strimgs='';for( var i=0; i<imgs.length; i++){if(i != 0){strimgs+=','};strimgs+=imgs[i].getAttribute('src');};return strimgs;}")
 	  EndIf
 
+	  ; conversation time line
+	  If Not $isWeibo Then
+		 ;ConcatConversation($oIE, $num)
+	  EndIf
+
 	  Local $imgsplits = StringSplit($imgurls,",")
 
 
@@ -220,8 +224,7 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 
 	  ; 切换到英文输入法，保证 send 正确 qq对话框文本输入
 	  SwitchEnglish($whichgroup)
-
-
+	  Sleep(500)
 	  Send($text,1)
 
 
@@ -339,13 +342,32 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 	  ;$oldTid = $tid
 	  _RunDos("echo "& $tid &" > " & $oldtidfile)
 
-	  If $num > 0 Then
-		 $num -= 1
-	  EndIf
-   Else
-	  ;nothing should be done
+	  Return True
    EndIf
 
+   Return False
+EndFunc
+
+
+; conversation time line
+Func ConcatConversation($oIE, $num)
+   Local $converdetail = js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").find('.stream-item-footer a .Icon--conversation').closest('a').attr('href') || ''")
+
+   If $converdetail Then
+	  ;MsgBox(0,"win active sina ", $converdetail)
+	  $converdetail = "/fangshimin/status/605647746259755010"
+	  Local $oIEConversation = _IECreate("http://twitter.com" & $converdetail)
+
+	  Local $origintxt = ConverComment($oIEConversation, 0, 1)
+	  Local $replytxt = ConverComment($oIEConversation, 1, 99)
+
+
+	  _IEQuit($oIEConversation)
+   EndIf
+EndFunc
+
+Func ConverComment($oIE, $num, $count)
+   Return js($oIE,"function(){var ret='',$lis = $('#ancestors .stream-items li.js-simple-tweet').slice("&$num&","&$count&"); for(var i=0,len=$lis.length; i<len; i++){var $li = $lis.eq(i), sender = $li.find('.stream-item-header .fullname').text(), cont = $li.find('p.tweet-text').text(); ret = '<header>@'+sender+'<header>'+cont + (i>0 ? '<split>//</split>':'') + ret}; return ret;}()")
 EndFunc
 
 Func SwitchEnglish($title)
@@ -354,7 +376,7 @@ Func SwitchEnglish($title)
    Local $ret = DllCall("user32.dll", "long", "LoadKeyboardLayout", "str", "08040804", "int", 1 + 0)
    DllCall("user32.dll", "ptr", "SendMessage", "hwnd", $hWnd, "int", 0x50, "int", 1, "int", $ret[0])
 
-   ;Send("^+1")
+   Send("^+1")
 EndFunc
 
 

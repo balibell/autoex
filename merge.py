@@ -14,6 +14,7 @@ import glob,os,sys
 
 picdir = sys.argv[1]
 prefix = sys.argv[2]
+imgsuffix = sys.argv[3]
 
 
 if __name__=='__main__':
@@ -54,7 +55,7 @@ if __name__=='__main__':
 
         index=sorted(index)
 
-        files=[picpre+'_'+str(x)+'.jpg' for x in index]
+        files=[picpre+'_'+str(x)+'.'+imgsuffix for x in index]
 
 
 
