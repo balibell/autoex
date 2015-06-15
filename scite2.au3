@@ -12,6 +12,7 @@ Dim $sinaPost = "http://dtxn.sinaapp.com/wormhole/new_weibo/"
 Dim $whichgroup = "我们(理性与人文)"
 ;$whichgroup = "山高高"
 
+Dim $qiniuPicPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
 Dim $logfile = "log.txt"
 Dim $num = 0
 
@@ -30,7 +31,6 @@ Func PostWeiboWindowMode($texten, $picurl)
 
 
 
-	;_RunDos("echo "& $imgurls &" >> " & $logfile)
 
    Local $wtit = 0
    While $wtit < 30
@@ -87,14 +87,14 @@ Func MainFunc()
 
    ;js($oIE,FileRead("jquery-2.0.2.js"))
 
-;~    ; whether can get tid from html content
-;~    Local $tid = GetTidFrom($oIE,0)
-;~    If Not $tid  Then
-;~ 	  _IEQuit($oIE)
-;~ 	  Sleep(10000)
-;~ 	  MainFunc()
-;~ 	  Return
-;~    EndIf
+   ; whether can get tid from html content
+   Local $tid = GetTidFrom($oIE,0)
+   If Not $tid  Then
+	  _IEQuit($oIE)
+	  Sleep(10000)
+	  MainFunc()
+	  Return
+   EndIf
 
 
 
@@ -165,7 +165,7 @@ Func MainFunc()
 	  Sleep(5000)
 
 	  ; 每隔 30 分钟关闭一次浏览器抓取页面窗口
-	  If _DateDiff( 's',$timestart,$timenow) > 1800  Then
+	  If _DateDiff( 's',$timestart,$timenow) > 3600  Then
 		 ; refresh page once in 1 hour
 		 ;_IEAction($oIE, "refresh")
 
@@ -200,7 +200,7 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 
 
 
-	  Local $texten = js($oIE,"encodeURIComponent($('.stream-items .stream-item').eq(" & $num & ").find('.tweet-text').text().replace(/ *pic\.twitter\.com.*/,''))")
+	  Local $texten = js($oIE,"encodeURIComponent($('.stream-items .stream-item').eq(" & $num & ").find('.tweet-text').text().replace(/ *pic\.twitter\.com[^ ]*/,''))")
 	  Local $imgurls = js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").find('.cards-media-container').attr('expimgs','').find('[data-resolved-url-large]').each(function(i,e){var $t=$(e),$c=$t.closest('.cards-media-container'),imgs=$c.attr('expimgs') || '';$c.attr('expimgs', imgs+ (i == 0 ? '' : ',') + $t.attr('data-resolved-url-large'))}).closest('.cards-media-container').attr('expimgs') || ''")
 
 	  If $isWeibo Then
@@ -209,8 +209,8 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 	  EndIf
 
 	  ; conversation time line
-	  If Not $isWeibo Then
-		 ;ConcatConversation($oIE, $num)
+	  If Not $isWeibo And Not $imgurls Then
+		 $imgurls = ConcatConversation($oIE, $num)
 	  EndIf
 
 	  Local $imgsplits = StringSplit($imgurls,",")
@@ -228,12 +228,14 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 	  Send($text,1)
 
 
-	  _RunDos("echo "& StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
-	  _RunDos("echo imgurls ----: "& $imgurls &" >> " & $logfile)
+
+	  ConsoleLog($text)
+	  ConsoleLog("imgurls ----: "& $imgurls)
+
 
 
 	  Local $picVisPath[$imgsplits[0]]
-	  Local $picVisPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
+
 
 	  ;MsgBox(0,"whole thing",$tid&$text)
 	  WinSetState(_IEPropertyGet ($oIE,"hwnd"),"",@SW_MINIMIZE)
@@ -242,11 +244,12 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 		 For $si=1 To $imgsplits[0]
 			Local $picSavePath = "img\tmp"& $si &".jpg"
 			Local $imgurl = $imgsplits[$si]
-			_RunDos("echo upload from twitter image : "& $imgurl &" >> " & $logfile)
+
+			ConsoleLog("echo upload from twitter image : "& $imgurl)
 
 			;MsgBox(0,"image exists", $imgurls)
 
-			$picVisPath[$si-1] = "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & ".jpg"
+			$picVisPath[$si-1] = GenQiuniuPath($si)
 
 			;Local $cmdDown = "python down.py " & $picSavePath & " " & $imgurls
 			;_RunDos($cmdDown)
@@ -283,8 +286,13 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 			   Send("!Y")
 			   Sleep(500)
 
-			   Local $cmdPutQiniu = "putfile "& $picVisPath[$si-1] &" " & $picSavePath
-			   _RunDos($cmdPutQiniu)
+
+			   If Not StringInStr($imgurl, $qiniuPicPre) Then
+				  Local $cmdPutQiniu = "putfile "& $picVisPath[$si-1] &" " & $picSavePath
+				  _RunDos($cmdPutQiniu)
+			   Else
+				  $picVisPath[$si-1] = StringReplace($imgurl, $qiniuPicPre,"")
+			   EndIf
 			EndIf
 
 
@@ -309,13 +317,13 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 
 	  ; -------------------------------------------------- 同时发表微博
 	  ;Local $sinaPostUrl = $sinaPost & "?txt=" & $texten
-	  ;$sinaPostUrl &= "&img=" & $picVisPre & $picVisPath[0]
+	  ;$sinaPostUrl &= "&img=" & $qiniuPicPre & $picVisPath[0]
 	  ;_IEAction ($oSina, "visible")
 	  ;_IENavigate($oSina, $sinaPostUrl)
 
 	  If Not $isWeibo Then
 		 If $imgurls Then
-			PostWeiboWindowMode($texten, $picVisPre & $picVisPath[0])
+			PostWeiboWindowMode($texten, $qiniuPicPre & $picVisPath[0])
 		 Else
 			PostWeiboWindowMode($texten, "")
 		 EndIf
@@ -355,19 +363,57 @@ Func ConcatConversation($oIE, $num)
 
    If $converdetail Then
 	  ;MsgBox(0,"win active sina ", $converdetail)
-	  $converdetail = "/fangshimin/status/605647746259755010"
+	  ;$converdetail = "/fangshimin/status/605647746259755010"
 	  Local $oIEConversation = _IECreate("http://twitter.com" & $converdetail)
 
-	  Local $origintxt = ConverComment($oIEConversation, 0, 1)
-	  Local $replytxt = ConverComment($oIEConversation, 1, 99)
+	  Local $origintxt = ConversationComment($oIEConversation, 0, 1)
+	  Local $replytxt = ConversationComment($oIEConversation, 1, 99)
+
+	  Local $timeorigin = js($oIEConversation,"$('#ancestors .stream-items li.js-simple-tweet').eq(0).find('.stream-item-header ._timestamp').attr('data-time-ms') || ''")
+
+	  WriteConversation("conversation/text_reply_1.txt", $replytxt)
+	  WriteConversation("conversation/text_origin_2.txt", $origintxt)
+
+	  MsgBox(0,"reply ", $replytxt)
+	  ConsoleLog($replytxt)
+
+	  MsgBox(0,"origin ", $origintxt & "//time:" & $timeorigin)
+	  ConsoleLog($origintxt)
+	  ConsoleLog("timestamp:" & $timeorigin)
+
+	  _RunDos("python txt2im.py " & $timeorigin)
+	  _RunDos("python merge.py conversation text jpg")
 
 
+	  Local $qiniuImgPath = GenQiuniuPath(0)
+	  Local $cmdPutQiniu = "putfile  " & $qiniuImgPath & " conversation/merged.jpg"
+	  _RunDos($cmdPutQiniu)
 	  _IEQuit($oIEConversation)
+
+	  _RunDos("del "& @WorkingDir &"\conversation\*.jpg")
+
+	  Return $qiniuPicPre & $qiniuImgPath
    EndIf
 EndFunc
 
-Func ConverComment($oIE, $num, $count)
-   Return js($oIE,"function(){var ret='',$lis = $('#ancestors .stream-items li.js-simple-tweet').slice("&$num&","&$count&"); for(var i=0,len=$lis.length; i<len; i++){var $li = $lis.eq(i), sender = $li.find('.stream-item-header .fullname').text(), cont = $li.find('p.tweet-text').text(); ret = '<header>@'+sender+'<header>'+cont + (i>0 ? '<split>//</split>':'') + ret}; return ret;}()")
+
+Func WriteConversation($sFilePath, $text)
+    ; Open the file for read/write access.
+    Local $hFileOpen = FileOpen($sFilePath, $FO_READ + $FO_OVERWRITE + $FO_UTF8_NOBOM )
+    If $hFileOpen = -1 Then
+        ConsoleLog("An error occurred when reading the file.")
+        Return False
+    EndIf
+
+    ; Write some data.
+    FileWrite($hFileOpen, $text)
+
+    ; Close the handle returned by FileOpen.
+    FileClose($hFileOpen)
+EndFunc
+
+Func ConversationComment($oIE, $num, $count)
+   Return js($oIE,"function(){var ret='',$lis = $('#ancestors .stream-items li.js-simple-tweet').slice("&$num&","&$count&"); for(var i=0,len=$lis.length; i<len; i++){var $li = $lis.eq(i), sender = $li.find('.stream-item-header .fullname').text(), cont = $li.find('p.tweet-text').text().replace(/ *pic\.twitter\.com[^ ]*/,''); ret = '@'+sender+': '+cont + (i>0 ? '//':'') + ret}; return ret;}()")
 EndFunc
 
 Func SwitchEnglish($title)
@@ -415,9 +461,13 @@ Func ReadFileValue($fileAddr)
 EndFunc
 
 
+Func GenQiuniuPath($si)
+   Return "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & ".jpg"
+EndFunc
 
-
-
+Func ConsoleLog($text)
+   _RunDos("echo "& StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
+EndFunc
 
 Func js($ie,$script)
   $ie.document.parentWindow.execscript("try{document.ScriptReturn=" & $script & "}catch(e){}")

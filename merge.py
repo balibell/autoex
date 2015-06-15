@@ -21,7 +21,7 @@ if __name__=='__main__':
 
     picpre='%s/%s' % (picdir, prefix)
 
-    files=glob.glob(picpre+'*')
+    files=glob.glob(picpre+'*.'+imgsuffix)
 
     num=len(files)
 
@@ -73,7 +73,7 @@ if __name__=='__main__':
 
         im=Image.open(file)
 
-        im=im.resize(sz,Image.ANTIALIAS)
+        im=im.resize(im.size,Image.ANTIALIAS)
 
         mat=np.atleast_2d(im)
 
@@ -83,4 +83,4 @@ if __name__=='__main__':
 
     final_img=Image.fromarray(basemat)
 
-    final_img.save('%s/merged.jpg' % picdir)
+    final_img.save('%s/merged.%s' % (picdir, imgsuffix))
