@@ -32,11 +32,13 @@ Func PostWeiboWindowMode($texten, $picurl)
 
 
 
+
    Local $wtit = 0
    While $wtit < 30
 	  Sleep(1000)
 	  ; 如果分享成功，退出循环
 	  If StringInStr(_IEPropertyGet($oSinaShare,"locationurl"), "share/success.php") > -1 Then
+		 ConsoleLog("=========== weibo sent ok =============")
 		 ExitLoop
 	  EndIf
 	  $wtit += 1
@@ -44,7 +46,7 @@ Func PostWeiboWindowMode($texten, $picurl)
 
    ; 关掉弹出的对话框
    Send("!Y")
-	_IEQuit($oSinaShare)
+   _IEQuit($oSinaShare)
    ; -------------------------------------------------- 发表微博结束
 EndFunc
 
@@ -165,7 +167,7 @@ Func MainFunc()
 	  Sleep(5000)
 
 	  ; 每隔 30 分钟关闭一次浏览器抓取页面窗口
-	  If _DateDiff( 's',$timestart,$timenow) > 3600  Then
+	  If _DateDiff( 's',$timestart,$timenow ) > 3600  Then
 		 ; refresh page once in 1 hour
 		 ;_IEAction($oIE, "refresh")
 
@@ -245,11 +247,11 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 			Local $picSavePath = "img\tmp"& $si &".jpg"
 			Local $imgurl = $imgsplits[$si]
 
-			ConsoleLog("echo upload from twitter image : "& $imgurl)
+			ConsoleLog("upload from twitter image : "& $imgurl)
 
 			;MsgBox(0,"image exists", $imgurls)
 
-			$picVisPath[$si-1] = GenQiuniuPath($si)
+			$picVisPath[$si-1] = GenQiuniuPath($si,"jpg")
 
 			;Local $cmdDown = "python down.py " & $picSavePath & " " & $imgurls
 			;_RunDos($cmdDown)
@@ -261,6 +263,7 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 			; fullscreen mode in browser
 			WinSetState(_IEPropertyGet ($oImg,"hwnd"),"",@SW_MAXIMIZE)
 			_IEAction($oImg,"visible")
+			Sleep(500)
 			MouseClick("right",40,160,1)
 			Sleep(500)
 			Send("C")
@@ -269,23 +272,7 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 
 
 			If Not $isWeibo Then
-			   Sleep(500)
-			   MouseClick("right",40,160,1)
-			   Sleep(500)
-			   Send("S")
-			   Sleep(1000)
-
-			   ;必须默认用英文输入法，切换有时候无用
-			   ;SwitchEnglish("保存图片")
-			   ;Sleep(500)
-
-			   Send(@WorkingDir & "\" & $picSavePath)
-			   Sleep(500)
-			   Send("{Enter}")
-			   Sleep(500)
-			   Send("!Y")
-			   Sleep(500)
-
+			   SavePictureTo($picSavePath)
 
 			   If Not StringInStr($imgurl, $qiniuPicPre) Then
 				  Local $cmdPutQiniu = "putfile "& $picVisPath[$si-1] &" " & $picSavePath
@@ -298,14 +285,28 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 
 
 			WinActivate($whichgroup)
-			Send("^{Enter}")
-			Send("^v")
 			Sleep(500)
+			Send("^{Enter}")
+			Sleep(500)
+			Send("^v")
+
 			_IEQuit($oImg)
 		 Next
 
-	  EndIf
+		 If $imgsplits[0] > 1 Then
+			_RunDos("python merge.py img tmp jpg jpg")
 
+			Local $oImgMerged = _IECreate($imgurl)
+			; fullscreen mode in browser
+			WinSetState(_IEPropertyGet ($oImg,"hwnd"),"",@SW_MAXIMIZE)
+			_IEAction($oImg,"visible")
+			Sleep(500)
+			MouseClick("right",40,160,1)
+			Sleep(500)
+			Send("C")
+		 EndIf
+
+	  EndIf
 
 	  ; 确认发送qq消息
 	  Send("{Enter}")
@@ -341,14 +342,16 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 			Next
 		 EndIf
 
-		 _RunDos("del "& @WorkingDir &"\img\*.jpg")
+		 ;_RunDos("del "& @WorkingDir &"\img\*.jpg")
 	  EndIf
 
 
 
 
 	  ;$oldTid = $tid
-	  _RunDos("echo "& $tid &" > " & $oldtidfile)
+	  If $tid Then
+		 _RunDos("echo "& $tid &" > " & $oldtidfile)
+	  EndIf
 
 	  Return True
    EndIf
@@ -371,26 +374,52 @@ Func ConcatConversation($oIE, $num)
 
 	  Local $timeorigin = js($oIEConversation,"$('#ancestors .stream-items li.js-simple-tweet').eq(0).find('.stream-item-header ._timestamp').attr('data-time-ms') || ''")
 
+	  Local $imgorigin = js($oIEConversation, "$($('#ancestors .stream-items li.js-simple-tweet').eq(0).find('[data-expanded-footer]').attr('data-expanded-footer')).find('[data-resolved-url-large]').attr('data-resolved-url-large') || ''")
+
+	  ; find the original img and save it to conversation/text_3.jpg
+	  If $imgorigin Then
+		 Local $oIEConversationImg = _IECreate($imgorigin)
+
+		 ; fullscreen mode in browser
+		 WinSetState(_IEPropertyGet ($oIEConversationImg,"hwnd"),"",@SW_MAXIMIZE)
+		 _IEAction($oIEConversationImg,"visible")
+
+		 SavePictureTo("conversation\text_3.jpg")
+
+		 _IEQuit($oIEConversationImg)
+
+		 ConsoleLog($imgorigin)
+	  EndIf
+
 	  WriteConversation("conversation/text_reply_1.txt", $replytxt)
 	  WriteConversation("conversation/text_origin_2.txt", $origintxt)
 
-	  MsgBox(0,"reply ", $replytxt)
+	  ;MsgBox(0,"reply ", $replytxt & "//time:" & $timeorigin)
 	  ConsoleLog($replytxt)
-
-	  MsgBox(0,"origin ", $origintxt & "//time:" & $timeorigin)
+	  ;MsgBox(0,"origin ", $origintxt & "//time:" & $timeorigin)
 	  ConsoleLog($origintxt)
 	  ConsoleLog("timestamp:" & $timeorigin)
 
-	  _RunDos("python txt2im.py " & $timeorigin)
-	  _RunDos("python merge.py conversation text jpg")
+	  Local $mergedsuffix
+	  If $imgorigin Then
+		 ; save jpg
+		 _RunDos("python txt2im.py " & $timeorigin & " jpg")
+		 _RunDos("python merge.py conversation text jpg jpg")
+		 $mergedsuffix = "jpg"
+	  Else
+		 ; save png
+		 _RunDos("python txt2im.py " & $timeorigin & " png")
+		 _RunDos("python merge.py conversation text png png")
+		 $mergedsuffix = "png"
+	  EndIf
 
-
-	  Local $qiniuImgPath = GenQiuniuPath(0)
-	  Local $cmdPutQiniu = "putfile  " & $qiniuImgPath & " conversation/merged.jpg"
+	  Local $qiniuImgPath = GenQiuniuPath(0, $mergedsuffix)
+	  Local $cmdPutQiniu = "putfile  " & $qiniuImgPath & " conversation/merged." & $mergedsuffix
 	  _RunDos($cmdPutQiniu)
 	  _IEQuit($oIEConversation)
 
 	  _RunDos("del "& @WorkingDir &"\conversation\*.jpg")
+	  _RunDos("del "& @WorkingDir &"\conversation\*.png")
 
 	  Return $qiniuPicPre & $qiniuImgPath
    EndIf
@@ -414,6 +443,26 @@ EndFunc
 
 Func ConversationComment($oIE, $num, $count)
    Return js($oIE,"function(){var ret='',$lis = $('#ancestors .stream-items li.js-simple-tweet').slice("&$num&","&$count&"); for(var i=0,len=$lis.length; i<len; i++){var $li = $lis.eq(i), sender = $li.find('.stream-item-header .fullname').text(), cont = $li.find('p.tweet-text').text().replace(/ *pic\.twitter\.com[^ ]*/,''); ret = '@'+sender+': '+cont + (i>0 ? '//':'') + ret}; return ret;}()")
+EndFunc
+
+
+Func SavePictureTo($picSavePath)
+   Sleep(500)
+   MouseClick("right",40,160,1)
+   Sleep(500)
+   Send("S")
+   Sleep(1000)
+
+   ;必须默认用英文输入法，切换有时候无用
+   ;SwitchEnglish("保存图片")
+   ;Sleep(500)
+
+   Send(@WorkingDir & "\" & $picSavePath)
+   Sleep(500)
+   Send("{Enter}")
+   Sleep(500)
+   Send("!Y")
+   Sleep(500)
 EndFunc
 
 Func SwitchEnglish($title)
@@ -461,12 +510,12 @@ Func ReadFileValue($fileAddr)
 EndFunc
 
 
-Func GenQiuniuPath($si)
-   Return "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & ".jpg"
+Func GenQiuniuPath($si, $suffix)
+   Return "img"& $si &"/" & _DateDiff( 's',"1970/01/01 00:00:00",_NowCalc()) & "." & $suffix
 EndFunc
 
 Func ConsoleLog($text)
-   _RunDos("echo "& StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
+   _RunDos("echo %date:~0,10%_%TIME:~0,2%-%TIME:~3,2%-%TIME:~6,2%: "  & StringRegExpReplace($text,"[&<>|]","") &" >> " & $logfile)
 EndFunc
 
 Func js($ie,$script)
