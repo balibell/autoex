@@ -49,7 +49,7 @@ def makeConfig(cfg=None):
         "title-line-height": 48, #px
         "font-size": 28, # px
         "title-font-size": 32, # px
-        "font-family": "wqy-zenhei.ttc",
+        "font-family": "Zfull-GB.ttf",
 #        "font-family": "msyh.ttf",
         "font-color": (51, 51, 51),
         "font-antialiasing": False, # 字体是否反锯齿

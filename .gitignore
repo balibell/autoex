@@ -1,5 +1,8 @@
 /scite2.exe
 /oldtid.txt
 /log.txt
-/conversation/*
-/img/*
+/conversation/*.jpg
+/conversation/*.txt
+/conversation/*.png
+/img/*.jpg
+/img/*.png
