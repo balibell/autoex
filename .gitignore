@@ -1,13 +1,5 @@
 /scite2.exe
-/img
 /oldtid.txt
 /log.txt
-/conversation/merged.jpg
-/conversation/test.html
-/conversation/text_1.jpg
-/conversation/text_2.jpg
-/conversation/text_origin_2.txt
-/conversation/text_reply_1.txt
-/conversation/test.html
-/conversation/text_origin_2.txt
-/conversation/text_reply_1.txt
+/conversation/*
+/img/*
