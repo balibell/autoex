@@ -15,6 +15,7 @@ import glob,os,sys
 picdir = sys.argv[1]
 prefix = sys.argv[2]
 imgsuffix = sys.argv[3]
+outsuffix = sys.argv[4]
 
 
 if __name__=='__main__':
@@ -63,7 +64,7 @@ if __name__=='__main__':
 
     baseimg=Image.open(files[0])
 
-    sz=baseimg.size
+    basex, basey = baseimg.size
 
     basemat=np.atleast_2d(baseimg)
 
@@ -73,7 +74,9 @@ if __name__=='__main__':
 
         im=Image.open(file)
 
-        im=im.resize(im.size,Image.ANTIALIAS)
+        imx, imy = im.size
+
+        im=im.resize((basex, basex * imy / imx),Image.ANTIALIAS)
 
         mat=np.atleast_2d(im)
 
@@ -83,4 +86,4 @@ if __name__=='__main__':
 
     final_img=Image.fromarray(basemat)
 
-    final_img.save('%s/merged.%s' % (picdir, imgsuffix))
+    final_img.save('%s/merged.%s' % (picdir, outsuffix))

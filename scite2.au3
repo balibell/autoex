@@ -6,17 +6,28 @@ Dim $pageurl = "https://twitter.com/fangshimin"
 ;$pageurl = "http://www.duitang.com"
 Dim $pageurlweibo = "http://weibo.com/u/1224254755"
 Dim $weibosync = False
+Dim $firstRun = True
+Dim $qiniuPicPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
+Dim $logfile = "log.txt"
+Dim $num = 0
+
 
 Dim $sinaAuth = "http://dtxn.sinaapp.com/SinaOauth/index/"
 Dim $sinaPost = "http://dtxn.sinaapp.com/wormhole/new_weibo/"
 Dim $whichgroup = "我们(理性与人文)"
 ;$whichgroup = "山高高"
 
-Dim $qiniuPicPre = "http://7u2o9e.com1.z0.glb.clouddn.com/"
-Dim $logfile = "log.txt"
-Dim $num = 0
 
-Dim $firstRun = True
+
+Func ClearHistoryAndSend()
+   MouseClick("right",10,160,1)
+   Sleep(500)
+   MouseClick("left",30,296,1)
+   Sleep(500)
+   Send("{Enter}")
+   Sleep(500)
+   Send("{Enter}")
+EndFunc
 
 Func PostWeiboWindowMode($texten, $picurl)
    ;Return
@@ -309,7 +320,8 @@ Func MainSync($oIE, $oldtidfile, $num, $isWeibo)
 	  EndIf
 
 	  ; 确认发送qq消息
-	  Send("{Enter}")
+	  ClearHistoryAndSend()
+
 
 	  Sleep(1000)
 
@@ -364,9 +376,10 @@ EndFunc
 Func ConcatConversation($oIE, $num)
    Local $converdetail = js($oIE,"$('.stream-items .stream-item').eq(" & $num & ").find('.stream-item-footer a .Icon--conversation').closest('a').attr('href') || ''")
 
+   ;$converdetail = "/fangshimin/status/616861782372564992"
    If $converdetail Then
 	  ;MsgBox(0,"win active sina ", $converdetail)
-	  ;$converdetail = "/fangshimin/status/605647746259755010"
+
 	  Local $oIEConversation = _IECreate("http://twitter.com" & $converdetail)
 
 	  Local $origintxt = ConversationComment($oIEConversation, 0, 1)
@@ -394,6 +407,7 @@ Func ConcatConversation($oIE, $num)
 	  WriteConversation("conversation/text_reply_1.txt", $replytxt)
 	  WriteConversation("conversation/text_origin_2.txt", $origintxt)
 
+
 	  ;MsgBox(0,"reply ", $replytxt & "//time:" & $timeorigin)
 	  ConsoleLog($replytxt)
 	  ;MsgBox(0,"origin ", $origintxt & "//time:" & $timeorigin)
@@ -412,6 +426,7 @@ Func ConcatConversation($oIE, $num)
 		 _RunDos("python merge.py conversation text png png")
 		 $mergedsuffix = "png"
 	  EndIf
+
 
 	  Local $qiniuImgPath = GenQiuniuPath(0, $mergedsuffix)
 	  Local $cmdPutQiniu = "putfile  " & $qiniuImgPath & " conversation/merged." & $mergedsuffix

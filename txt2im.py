@@ -333,6 +333,7 @@ def txt2im(txt, outfn, cfg=None, showfoot=False):
             "padding": (1, 0, 0, 0),
             "line-height": 0, #px
             "font-size": 0, # px
+            "background-color": (242, 242, 245),
         }
 
 #    print(cfg)
