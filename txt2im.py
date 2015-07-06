@@ -52,14 +52,15 @@ def makeConfig(cfg=None):
         "font-family": "wqy-zenhei.ttc",
 #        "font-family": "msyh.ttf",
         "font-color": (51, 51, 51),
-        "font-antialiasing": True, # 字体是否反锯齿
+        "font-antialiasing": False, # 字体是否反锯齿
         "background-color": (255, 255, 255),
         "border-size": 0,
         "border-color": (192, 192, 192),
         #"copyright": u"本图文由 txt2.im 自动生成，但不代表 txt2.im 赞同其内容或立场。",
         "copyright": u"本图文由 txt2.im 自动生成",
-        "copyright-font-size": 20,
-        "copyright-center": False, # 版权信息居中显示，如为 False 则居左显示
+        "copyright-height": 30,
+        "copyright-font-size": 14,
+        "copyright-align": "left", # 版权信息居中显示，如为 False 则居左显示
         "first-line-as-title": False,
         "break-word": False,
     }
@@ -230,7 +231,7 @@ def makeImage(data, cfg, showfoot):
 
     width, height = data["width"], data["height"]
     if cfg["copyright"] and showfoot:
-        height += 48
+        height += cfg["copyright-height"]
     im = Image.new("RGB", (width, height), cfg["background-color"])
     dr = ImageDraw.Draw(im)
 
@@ -265,15 +266,23 @@ def drawCopyright(im, dr, cfg):
     copyright_im = Image.open(sio)
 
     iw, ih = im.size
+
+    print "image height : %d // font size: %s " % (ih,cfg["copyright-font-size"])
     cw, ch = rtext.get_size()
     padding = cfg["padding"]
 
-    offset_y = ih - 46 - padding[2]
-    if cfg["copyright-center"]:
+    offset_y = ih - cfg["copyright-height"] - padding[2]
+    if cfg["copyright-align"] == "center":
         cx = (iw - cw) / 2
+
+    elif cfg["copyright-align"] == "right":
+        cx = (iw - cw) - cfg["padding"][3]
     else:
         cx = cfg["padding"][3]
-    cy = offset_y + 12
+
+
+    print "cx: %d "  % cx
+    cy = offset_y + 8
 
     #dr.line([(padding[3], offset_y), (iw - padding[1], offset_y)], width=1, fill=(192, 192, 192))
     im.paste(copyright_im, (cx, cy))
@@ -309,10 +318,22 @@ def __makeLine(im, line, cfg):
     sio.seek(0)
     ln_im = Image.open(sio)
 
+
+    iw, ih = ln_im.size
+
+    print "line ln_im ht: %d" % (ih)
+
     im.paste(ln_im, (x, y))
 
 
 def txt2im(txt, outfn, cfg=None, showfoot=False):
+
+    if not txt:
+        cfg = {
+            "padding": (1, 0, 0, 0),
+            "line-height": 0, #px
+            "font-size": 0, # px
+        }
 
 #    print(cfg)
     cfg = makeConfig(cfg)
@@ -329,30 +350,32 @@ def txt2im(txt, outfn, cfg=None, showfoot=False):
 def test():
 
     main_cfg = {
-        "padding": (15, 18, 10, 18),
-        "line-height": 42, #px
+        "padding": (24, 18, 8, 22),
+        "line-height": 48, #px
         "font-size": 28, # px
         "font-color": (51, 51, 51),
         "background-color": (255, 255, 255),
     }
     c = open("conversation/text_reply_1.txt", "rb").read().decode("utf-8")
-    txt2im(c, "conversation/text_1.jpg", cfg=main_cfg, showfoot=False)
+    txt2im(c, "conversation/text_1."+sys.argv[2], cfg=main_cfg, showfoot=False)
 
     print len(sys.argv)
 
     origin_cfg = {
-        "padding": (18, 24, 10, 30),
-        "line-height": 38, #px
-        "font-size": 26, # px
+        "padding": (20, 24, 8, 22),
+        "line-height": 40, #px
+        "font-size": 24, # px
         "font-color": (51, 51, 51),
         "background-color": (242, 242, 245),
+        "copyright-font-size": 20,
+        "copyright-height": 40,
         "copyright": '',
     }
     if len(sys.argv) > 1:
-        origin_cfg["copyright"] = datetime.fromtimestamp(float(sys.argv[1])/1000).strftime('%Y-%m-%d %H:%M:%S')
+        origin_cfg["copyright"] = datetime.fromtimestamp(float(sys.argv[1])/1000).strftime('%m-%d %H:%M')
 
     c = open("conversation/text_origin_2.txt", "rb").read().decode("utf-8")
-    txt2im(c, "conversation/text_2.jpg", cfg=origin_cfg, showfoot=True)
+    txt2im(c, "conversation/text_2."+sys.argv[2], cfg=origin_cfg, showfoot=True)
 
 
 if __name__ == "__main__":
